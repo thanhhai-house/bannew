@@ -2,25 +2,148 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Quản Lý Kho Tầng 3</title>
+<title>Hệ Thống Quản Lý Kho</title>
 
 <style>
-body{font-family:Arial;text-align:center;background:#f4f4f4}
-.grid{display:grid;grid-template-columns:repeat(16,50px);gap:5px;justify-content:center}
-.small-grid{display:grid;grid-template-columns:repeat(12,50px);gap:5px;justify-content:center}
-.cell{width:50px;height:50px;background:white;border:1px solid #999;font-size:9px;cursor:pointer}
-.filled{background:#27ae60;color:white}
+body{
+    font-family:Arial;
+    text-align:center;
+    background:#eaf4ff;
+    margin:0;
+}
+
+h1{
+    background:#0d6efd;
+    color:white;
+    padding:15px;
+    margin:0;
+}
+
+.controls{
+    background:white;
+    padding:15px;
+    margin:20px auto;
+    width:95%;
+    max-width:900px;
+    border-radius:12px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.1);
+}
+
+input{
+    width:90px;
+    padding:6px;
+    margin:5px;
+    border:1px solid #0d6efd;
+    border-radius:6px;
+}
+
+button{
+    padding:8px 14px;
+    margin:5px;
+    border:none;
+    border-radius:6px;
+    background:#0d6efd;
+    color:white;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+button:hover{
+    background:#0b5ed7;
+}
+
+.grid{
+    display:grid;
+    gap:6px;
+    justify-content:center;
+    margin-bottom:25px;
+}
+
+.cell{
+    width:50px;
+    height:50px;
+    background:white;
+    border:2px solid #0d6efd;
+    font-size:8px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    border-radius:8px;
+    transition:0.2s;
+}
+
+.cell:hover{
+    background:#dbe9ff;
+}
+
+.filled{
+    background:#0d6efd;
+    color:white;
+}
+
+.modal{
+    display:none;
+    position:fixed;
+    top:0;left:0;
+    width:100%;height:100%;
+    background:rgba(0,0,0,0.4);
+    align-items:center;
+    justify-content:center;
+}
+
+.modal-content{
+    background:white;
+    padding:20px;
+    width:320px;
+    border-radius:15px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.2);
+    text-align:left;
+}
+
+textarea{
+    width:100%;
+    height:60px;
+    margin-bottom:10px;
+    border:1px solid #0d6efd;
+    border-radius:6px;
+    padding:6px;
+}
 </style>
 </head>
 <body>
 
-<h1>KHO TẦNG 3</h1>
+<h1>HỆ THỐNG QUẢN LÝ KHO</h1>
+
+<div class="controls">
+Dãy: <input type="number" id="rows" value="8">
+Ô mỗi dãy: <input type="number" id="cols" value="16">
+Tầng nhỏ: <input type="number" id="smallFloors" value="3">
+Ô mỗi tầng nhỏ: <input type="number" id="smallCols" value="12">
+<br>
+<button onclick="buildWarehouse()">Cập nhật kho</button>
+</div>
+
 <div id="warehouse"></div>
+
+<div class="modal" id="modal">
+<div class="modal-content">
+<h3 id="modalTitle"></h3>
+<input type="text" id="name" placeholder="Tên sản phẩm"><br>
+<input type="text" id="code" placeholder="Mã sản phẩm"><br>
+<input type="number" id="qty" placeholder="Số lượng"><br>
+<textarea id="note" placeholder="Ghi chú"></textarea><br>
+<button onclick="saveProduct()">Lưu</button>
+<button onclick="deleteProduct()">Xoá</button>
+<button onclick="closeModal()">Đóng</button>
+</div>
+</div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "DÁN_API_KEY",
@@ -34,79 +157,105 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const warehouseDiv = document.getElementById("warehouse");
+const warehouseDiv=document.getElementById("warehouse");
+const modal=document.getElementById("modal");
+let currentPosition=null;
 
-function createCell(position){
-  let cell=document.createElement("div");
-  cell.className="cell";
-  cell.innerText=position;
-
-  async function load(){
-    const snap=await getDoc(doc(db,"warehouse",position));
-    if(snap.exists()){
-      let data=snap.data();
-      cell.classList.add("filled");
-      cell.innerText=position+"\n"+data.name;
-    }
-  }
-  load();
-
-  cell.onclick=async function(){
-    let name=prompt("Tên sản phẩm:");
-    if(!name)return;
-    let qty=prompt("Số lượng:");
-    if(!qty)return;
-
-    await setDoc(doc(db,"warehouse",position),{name,qty});
-    cell.classList.add("filled");
-    cell.innerText=position+"\n"+name;
-  }
-
-  return cell;
+function openModal(position,data=null){
+currentPosition=position;
+document.getElementById("modalTitle").innerText=position;
+document.getElementById("name").value=data?.name||"";
+document.getElementById("code").value=data?.code||"";
+document.getElementById("qty").value=data?.qty||"";
+document.getElementById("note").value=data?.note||"";
+modal.style.display="flex";
 }
 
-function createMain(){
-  for(let d=1;d<=8;d++){
-    let title=document.createElement("h3");
-    title.innerText="Dãy "+d;
-    warehouseDiv.appendChild(title);
+window.closeModal=()=>modal.style.display="none";
 
-    let grid=document.createElement("div");
-    grid.className="grid";
-
-    for(let o=1;o<=16;o++){
-      grid.appendChild(createCell(`F3-D${d}-O${o}`));
-    }
-
-    warehouseDiv.appendChild(grid);
-  }
+window.saveProduct=async function(){
+const name=document.getElementById("name").value;
+const code=document.getElementById("code").value;
+const qty=document.getElementById("qty").value;
+const note=document.getElementById("note").value;
+if(!name)return alert("Nhập tên sản phẩm");
+await setDoc(doc(db,"warehouse",currentPosition),{name,code,qty,note});
+buildWarehouse();
+closeModal();
 }
 
-function createSmall(){
-  let title=document.createElement("h2");
-  title.innerText="KHU 3 TẦNG NHỎ";
-  warehouseDiv.appendChild(title);
-
-  for(let s=1;s<=3;s++){
-    let sub=document.createElement("h3");
-    sub.innerText="S"+s;
-    warehouseDiv.appendChild(sub);
-
-    let grid=document.createElement("div");
-    grid.className="small-grid";
-
-    for(let o=1;o<=12;o++){
-      grid.appendChild(createCell(`F3-S${s}-O${o}`));
-    }
-
-    warehouseDiv.appendChild(grid);
-  }
+window.deleteProduct=async function(){
+await deleteDoc(doc(db,"warehouse",currentPosition));
+buildWarehouse();
+closeModal();
 }
 
-createMain();
-createSmall();
+async function createCell(position){
+let cell=document.createElement("div");
+cell.className="cell";
+cell.innerText=position;
+
+const snap=await getDoc(doc(db,"warehouse",position));
+if(snap.exists()){
+let data=snap.data();
+cell.classList.add("filled");
+cell.innerText=data.name;
+cell.onclick=()=>openModal(position,data);
+}else{
+cell.onclick=()=>openModal(position);
+}
+return cell;
+}
+
+window.buildWarehouse=async function(){
+
+warehouseDiv.innerHTML="";
+
+const rows=parseInt(document.getElementById("rows").value);
+const cols=parseInt(document.getElementById("cols").value);
+const smallFloors=parseInt(document.getElementById("smallFloors").value);
+const smallCols=parseInt(document.getElementById("smallCols").value);
+
+for(let d=1;d<=rows;d++){
+let title=document.createElement("h3");
+title.innerText="Dãy "+d;
+warehouseDiv.appendChild(title);
+
+let grid=document.createElement("div");
+grid.className="grid";
+grid.style.gridTemplateColumns=`repeat(${cols},50px)`;
+
+for(let o=1;o<=cols;o++){
+grid.appendChild(await createCell(`D${d}-O${o}`));
+}
+warehouseDiv.appendChild(grid);
+}
+
+if(smallFloors>0){
+let title=document.createElement("h2");
+title.innerText="KHU TẦNG NHỎ";
+warehouseDiv.appendChild(title);
+
+for(let s=1;s<=smallFloors;s++){
+let sub=document.createElement("h3");
+sub.innerText="Tầng nhỏ "+s;
+warehouseDiv.appendChild(sub);
+
+let grid=document.createElement("div");
+grid.className="grid";
+grid.style.gridTemplateColumns=`repeat(${smallCols},50px)`;
+
+for(let o=1;o<=smallCols;o++){
+grid.appendChild(await createCell(`S${s}-O${o}`));
+}
+warehouseDiv.appendChild(grid);
+}
+}
+
+}
+
+buildWarehouse();
 
 </script>
 </body>
 </html>
-
