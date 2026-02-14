@@ -1,1 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Quản Lý Kho Tầng 3</title>
+
+<style>
+body{font-family:Arial;text-align:center;background:#f4f4f4}
+.grid{display:grid;grid-template-columns:repeat(16,50px);gap:5px;justify-content:center}
+.small-grid{display:grid;grid-template-columns:repeat(12,50px);gap:5px;justify-content:center}
+.cell{width:50px;height:50px;background:white;border:1px solid #999;font-size:9px;cursor:pointer}
+.filled{background:#27ae60;color:white}
+</style>
+</head>
+<body>
+
+<h1>KHO TẦNG 3</h1>
+<div id="warehouse"></div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "DÁN_API_KEY",
+  authDomain: "DÁN_AUTHDOMAIN",
+  projectId: "DÁN_PROJECT_ID",
+  storageBucket: "DÁN_BUCKET",
+  messagingSenderId: "DÁN_SENDER_ID",
+  appId: "DÁN_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const warehouseDiv = document.getElementById("warehouse");
+
+function createCell(position){
+  let cell=document.createElement("div");
+  cell.className="cell";
+  cell.innerText=position;
+
+  async function load(){
+    const snap=await getDoc(doc(db,"warehouse",position));
+    if(snap.exists()){
+      let data=snap.data();
+      cell.classList.add("filled");
+      cell.innerText=position+"\n"+data.name;
+    }
+  }
+  load();
+
+  cell.onclick=async function(){
+    let name=prompt("Tên sản phẩm:");
+    if(!name)return;
+    let qty=prompt("Số lượng:");
+    if(!qty)return;
+
+    await setDoc(doc(db,"warehouse",position),{name,qty});
+    cell.classList.add("filled");
+    cell.innerText=position+"\n"+name;
+  }
+
+  return cell;
+}
+
+function createMain(){
+  for(let d=1;d<=8;d++){
+    let title=document.createElement("h3");
+    title.innerText="Dãy "+d;
+    warehouseDiv.appendChild(title);
+
+    let grid=document.createElement("div");
+    grid.className="grid";
+
+    for(let o=1;o<=16;o++){
+      grid.appendChild(createCell(`F3-D${d}-O${o}`));
+    }
+
+    warehouseDiv.appendChild(grid);
+  }
+}
+
+function createSmall(){
+  let title=document.createElement("h2");
+  title.innerText="KHU 3 TẦNG NHỎ";
+  warehouseDiv.appendChild(title);
+
+  for(let s=1;s<=3;s++){
+    let sub=document.createElement("h3");
+    sub.innerText="S"+s;
+    warehouseDiv.appendChild(sub);
+
+    let grid=document.createElement("div");
+    grid.className="small-grid";
+
+    for(let o=1;o<=12;o++){
+      grid.appendChild(createCell(`F3-S${s}-O${o}`));
+    }
+
+    warehouseDiv.appendChild(grid);
+  }
+}
+
+createMain();
+createSmall();
+
+</script>
+</body>
+</html>
 
